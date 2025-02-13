@@ -33,10 +33,12 @@ public class PathBuilder {
 
             @Override
             public void run() {
-                int limit = Math.min(index + batchSize, result.getSteps().size());
-                for (; index < limit; index++) {
+                int placed = 0;
+                while (placed < batchSize && index < result.getSteps().size()) {
                     Location step = result.getSteps().get(index);
                     segmentBuilder.buildSegment(step, pathWidth);
+                    index++;
+                    placed++;
                 }
 
                 if (index >= result.getSteps().size()) {
@@ -44,6 +46,6 @@ public class PathBuilder {
                     plugin.getServer().getScheduler().cancelTask(taskId.get());
                 }
             }
-        }, 0L, 1L).getTaskId());
+        }, 0L, 10L).getTaskId()); // Adjusted delay to 10 ticks (0.5s) for more stability
     }
 }
