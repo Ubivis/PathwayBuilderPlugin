@@ -1,0 +1,42 @@
+# config.yml
+
+# Blocks that should be avoided during pathfinding (e.g., buildings, walls)
+blocks_to_avoid:
+  - BRICKS
+  - PLANKS
+  - GLASS
+  - STONE_BRICKS
+  - OAK_LOG
+
+# Custom costs for A* pathfinding to prioritize certain block types
+block_costs:
+  GRASS_PATH: 0.5
+  GRAVEL: 0.5
+  COBBLESTONE: 0.5
+
+# Toggle to avoid water and lava completely during pathfinding
+avoid_water_lava: true
+
+# Width of the constructed path in blocks
+path_width: 3
+
+# Number of blocks built per tick to reduce lag
+path_build_batch_size: 5
+
+# Materials used for different types of path segments
+path_styles:
+  default: GRASS_PATH
+  bridge: OAK_PLANKS
+  tunnel: STONE_BRICKS
+
+# Material for slopes (e.g., stairs)
+slope_material: STONE_STAIRS
+
+# Optional decorative edges along the path
+decorative_edges: STONE_BRICKS
+
+# Railings for bridges
+bridge_railings: OAK_FENCE
+
+# Debugging output (true/false)
+debug: false
