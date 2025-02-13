@@ -3,6 +3,9 @@ version: 1.0
 main: com.ubivismedia.pathwaybuilder.PathwayBuilderPlugin
 api-version: 1.20
 commands:
+  getpathwaystick:
+    description: Gives the Pathway Stick to select points
+    permission: pathwaybuilder.admin
   setpathpoint:
     description: Set a path point
     permission: pathwaybuilder.admin
@@ -10,10 +13,15 @@ commands:
     description: Build a path between points
     permission: pathwaybuilder.admin
   undopath:
-    description: Undo the last built path
+    description: Undo a path by ID
     permission: pathwaybuilder.admin
-
+  listpaths:
+    description: List all paths with clickable IDs
+    permission: pathwaybuilder.admin
+  showpath:
+    description: Highlight a path with particles
+    permission: pathwaybuilder.admin
 permissions:
   pathwaybuilder.admin:
-    description: Allows using PathwayBuilderPlugin commands
+    description: Allows access to all PathwayBuilderPlugin commands
     default: op
