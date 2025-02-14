@@ -1,42 +1,45 @@
-# config.yml
-
-# Blocks that should be avoided during pathfinding (e.g., buildings, walls)
-blocks_to_avoid:
-  - BRICKS
-  - PLANKS
-  - GLASS
-  - STONE_BRICKS
-  - OAK_LOG
-
-# Custom costs for A* pathfinding to prioritize certain block types
-block_costs:
-  GRASS_PATH: 0.5
-  GRAVEL: 0.5
-  COBBLESTONE: 0.5
-
-# Toggle to avoid water and lava completely during pathfinding
-avoid_water_lava: true
-
-# Width of the constructed path in blocks
-path_width: 3
-
-# Number of blocks built per tick to reduce lag
-path_build_batch_size: 5
-
-# Materials used for different types of path segments
+# Material used for the main pathway surface
 path_styles:
   default: GRASS_PATH
-  bridge: OAK_PLANKS
-  tunnel: STONE_BRICKS
 
-# Material for slopes (e.g., stairs)
+# Material used for tunnel walls and ceiling reinforcement
+tunnel_reinforcement: STONE_BRICKS
+
+# Material used for slopes when elevation changes are detected (e.g., stairs)
 slope_material: STONE_STAIRS
 
-# Optional decorative edges along the path
-decorative_edges: STONE_BRICKS
+# Height of tunnels (3 means 3 blocks high, providing 2 blocks of headspace inside)
+tunnel_height: 3
 
-# Railings for bridges
-bridge_railings: OAK_FENCE
+# Material used for bridge supports (e.g., pillars down to the ground)
+bridge_support_material: STONE_BRICKS
 
-# Debugging output (true/false)
-debug: false
+# Maximum depth to build bridge supports (prevents endless pillars in deep areas)
+bridge_support_depth: 10
+
+# Material used for bridge railings (placed on the left and right sides of the bridge)
+bridge_railing_material: OAK_FENCE
+
+# Material used for lighting on bridges (e.g., TORCH or LANTERN)
+bridge_light_material: TORCH
+
+# Interval (in blocks) at which lights are placed on bridges
+bridge_light_interval: 5
+
+# Number of blocks built per tick when building the path (affects performance)
+path_build_batch_size: 5
+
+# Width of the path in blocks (e.g., 3 means a 3-block-wide path)
+path_width: 3
+
+# List of block types that the pathfinding algorithm will avoid when calculating the path
+blocks_to_avoid:
+  - LAVA
+  - WATER
+
+# Costs associated with moving over different block types (higher values discourage pathfinding over these blocks)
+block_costs:
+  GRASS_BLOCK: 1.0
+  STONE: 1.5
+  DIRT: 1.0
+  SAND: 1.2

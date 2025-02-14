@@ -14,6 +14,9 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.plugin.java.JavaPlugin;
 import com.ubivismedia.pathwaybuilder.util.ChunkPreloader;
 import com.ubivismedia.pathwaybuilder.util.PathBuilder;
+import org.bukkit.Particle;
+import org.bukkit.Particle.DustOptions;
+import org.bukkit.Color;
 
 import java.io.*;
 import java.util.*;
@@ -25,6 +28,7 @@ public class PathwayBuilderPlugin extends JavaPlugin implements Listener {
     private final HashMap<String, PathResult> pathHistory = new HashMap<>();
     private File pathStorageFile;
     private final String PATHWAY_STICK_NAME = ChatColor.GOLD + "Pathway Stick";
+    private int highlightTaskId = -1;
 
     @Override
     public void onEnable() {
@@ -113,98 +117,29 @@ public class PathwayBuilderPlugin extends JavaPlugin implements Listener {
                 player.sendMessage("No paths available.");
             } else {
                 player.sendMessage("Built Paths:");
-                for (String pathId : pathHistory.keySet()) {
+                for (Map.Entry<String, PathResult> entry : pathHistory.entrySet()) {
+                    String pathId = entry.getKey();
+                    PathResult path = entry.getValue();
+                    String creationDate = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
+                            .format(new java.util.Date(path.getCreationTimestamp()));
+
                     player.spigot().sendMessage(
-                            new ComponentBuilder("§a[Click to Show Path]§r " + pathId)
+                            new ComponentBuilder("§a[Click to Show Path]§r " + pathId + " (Created: " + creationDate + ")")
                                     .event(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/showpath " + pathId))
                                     .create()
                     );
                 }
             }
-        } else if (command.getName().equalsIgnoreCase("showpath")) {
-            if (args.length != 1) {
-                player.sendMessage("Usage: /showpath <id>");
-                return true;
-            }
-            String pathId = args[0];
-
-            PathResult pathResult = pathHistory.get(pathId);
-            if (pathResult == null) {
-                player.sendMessage("Path with ID " + pathId + " not found.");
-            } else {
-                player.sendMessage("Highlighting path " + pathId + " for 1 minute.");
-                highlightPath(player, pathResult);
-            }
         }
         return true;
     }
 
-    @EventHandler
-    public void onPlayerInteract(PlayerInteractEvent event) {
-        Player player = event.getPlayer();
-        if (!player.isOp() || player.getInventory().getItemInMainHand().getType() != Material.STICK) return;
-
-        ItemMeta meta = player.getInventory().getItemInMainHand().getItemMeta();
-        if (meta == null || !PATHWAY_STICK_NAME.equals(meta.getDisplayName())) return;
-
-        if (event.getAction().toString().contains("LEFT_CLICK")) {
-            point1 = player.getLocation().getBlock().getLocation();
-            player.sendMessage(ChatColor.YELLOW + "Point 1 set with Pathway Stick at: " + point1);
-        } else if (event.getAction().toString().contains("RIGHT_CLICK")) {
-            point2 = player.getLocation().getBlock().getLocation();
-            player.sendMessage(ChatColor.YELLOW + "Point 2 set with Pathway Stick at: " + point2);
-        }
-    }
-
-private void highlightPath(Player player, PathResult pathResult) {
-        Bukkit.getScheduler().runTaskTimer(this, new Runnable() {
-            private int ticks = 0;
-
-            @Override
-            public void run() {
-                if (ticks >= 1200) {
-                    Bukkit.getScheduler().cancelTask(this.hashCode());
-                    return;
-                }
-
-                for (Location loc : pathResult.getSteps()) {
-                    player.spawnParticle(Particle.REDSTONE, loc.clone().add(0.5, 1, 0.5), 5, new Particle.DustOptions(org.bukkit.Color.RED, 1));
-                }
-                ticks += 20;
-            }
-        }, 0L, 20L);
-    }
-
     private void savePathToFile(String pathId, PathResult result) {
-        try (BufferedWriter writer = new BufferedWriter(new FileWriter(pathStorageFile, true))) {
-            for (Location step : result.getSteps()) {
-                writer.write(pathId + ";" + step.getWorld().getName() + ";" + step.getBlockX() + ";" + step.getBlockY() + ";" + step.getBlockZ());
-                writer.newLine();
-            }
+        try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(pathStorageFile, true))) {
+            oos.writeObject(pathId);
+            oos.writeObject(result);
         } catch (IOException e) {
-            getLogger().severe("Failed to save path to file: " + e.getMessage());
-        }
-    }
-
-    private void removePathFromFile(String pathId) {
-        try {
-            List<String> lines = new ArrayList<>();
-            try (BufferedReader reader = new BufferedReader(new FileReader(pathStorageFile))) {
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    if (!line.startsWith(pathId + ";")) {
-                        lines.add(line);
-                    }
-                }
-            }
-            try (BufferedWriter writer = new BufferedWriter(new FileWriter(pathStorageFile))) {
-                for (String line : lines) {
-                    writer.write(line);
-                    writer.newLine();
-                }
-            }
-        } catch (IOException e) {
-            getLogger().severe("Failed to remove path from file: " + e.getMessage());
+            getLogger().severe("Failed to save path: " + e.getMessage());
         }
     }
 
@@ -212,43 +147,68 @@ private void highlightPath(Player player, PathResult pathResult) {
         if (!pathStorageFile.exists()) {
             return;
         }
-
-        try (BufferedReader reader = new BufferedReader(new FileReader(pathStorageFile))) {
-            String line;
-            PathResult currentPathResult = null;
-            String currentPathId = null;
-
-            while ((line = reader.readLine()) != null) {
-                String[] parts = line.split(";");
-                if (parts.length != 5) continue;
-
-                String pathId = parts[0];
-                String worldName = parts[1];
-                int x = Integer.parseInt(parts[2]);
-                int y = Integer.parseInt(parts[3]);
-                int z = Integer.parseInt(parts[4]);
-
-                Location location = new Location(Bukkit.getWorld(worldName), x, y, z);
-
-                if (!pathId.equals(currentPathId)) {
-                    if (currentPathId != null) {
-                        pathHistory.put(currentPathId, currentPathResult);
-                    }
-                    currentPathResult = new PathResult();
-                    currentPathId = pathId;
-                }
-
-                if (currentPathResult != null) {
-                    currentPathResult.addStep(location);
+        try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(pathStorageFile))) {
+            while (true) {
+                try {
+                    String pathId = (String) ois.readObject();
+                    PathResult result = (PathResult) ois.readObject();
+                    pathHistory.put(pathId, result);
+                } catch (EOFException e) {
+                    break;
                 }
             }
+        } catch (IOException | ClassNotFoundException e) {
+            getLogger().severe("Failed to load paths: " + e.getMessage());
+        }
+    }
 
-            if (currentPathId != null) {
-                pathHistory.put(currentPathId, currentPathResult);
+    private void removePathFromFile(String pathId) {
+        pathHistory.remove(pathId);
+        try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(pathStorageFile))) {
+            for (Map.Entry<String, PathResult> entry : pathHistory.entrySet()) {
+                oos.writeObject(entry.getKey());
+                oos.writeObject(entry.getValue());
             }
-
         } catch (IOException e) {
-            getLogger().severe("Failed to load paths from file: " + e.getMessage());
+            getLogger().severe("Failed to update path storage: " + e.getMessage());
+        }
+    }
+
+    public void highlightPath(Player player, PathResult result) {
+        highlightTaskId = Bukkit.getScheduler().runTaskTimer(this, new Runnable() {
+            private int index = 0;
+            private int timer = 0;
+
+            @Override
+            public void run() {
+                if (index < result.getSteps().size()) {
+                    Location step = result.getSteps().get(index);
+                    player.spawnParticle(Particle.FLAME, step, 5, 0, 0, 0, 0);
+                    index++;
+                }
+
+                timer++;
+                if (timer >= 60 * 20) { // Stop after 1 minute
+                    Bukkit.getScheduler().cancelTask(highlightTaskId);
+                    highlightTaskId = -1;
+                }
+            }
+        }, 0L, 5L).getTaskId();
+    }
+
+
+    @EventHandler
+    public void onPlayerInteract(PlayerInteractEvent event) {
+        Player player = event.getPlayer();
+        ItemStack item = event.getItem();
+        if (item != null && item.hasItemMeta() && PATHWAY_STICK_NAME.equals(item.getItemMeta().getDisplayName())) {
+            if (event.getAction().toString().contains("LEFT_CLICK")) {
+                point1 = event.getClickedBlock().getLocation();
+                player.sendMessage(ChatColor.GREEN + "Point 1 set at: " + point1);
+            } else if (event.getAction().toString().contains("RIGHT_CLICK")) {
+                point2 = event.getClickedBlock().getLocation();
+                player.sendMessage(ChatColor.GREEN + "Point 2 set at: " + point2);
+            }
         }
     }
 }
